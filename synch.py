@@ -1,4 +1,3 @@
-from environment import GridWorldEnv
 import random
 
 
@@ -17,7 +16,7 @@ def policy_evaluation(env, policy, theta=1e-5):
                 reward = env.reward(next_state)
                 gamma = env.gamma
                 V[s] += probability * (reward + prev_V[next_state] * gamma)
-        delta = abs(max(V[s] - prev_V[s] for s in env.states))
+        delta = max(abs(V[s] - prev_V[s]) for s in env.states)
 
         if delta < theta:
             break
@@ -40,9 +39,9 @@ def greedy_policy_improvement(env, V):
 
                 reward = env.reward(next_state)
                 value += probability * (reward + env.gamma * V[next_state])
-                if value > best_value:
-                    best_value = value
-                    best_action = action
+            if value > best_value:
+                best_value = value
+                best_action = action
         new_policy[s] = best_action
     return new_policy
 
@@ -68,52 +67,38 @@ def policy_iteration(env, policy):
 def value_iteration(env, theta):
     V = {s: 0.0 for s in env.states}
     policy = {}
+    count = 0
     while True:
+        V_old = V.copy()
         delta = 0
         for s in env.states:
             if env.is_terminal(s):
                 continue
-            old_V = V[s]
             best_action = None
             best_value = float("-INF")
             for a in env.actions:
                 value = 0
                 for probability, next_state in env.get_transitions(s, a):
                     reward = env.reward(next_state)
-                    value += probability * (reward + env.gamma * V[next_state])
+                    value += probability * (reward + env.gamma * V_old[next_state])
                 if value > best_value:
                     best_value = value
                     best_action = a
             V[s] = best_value # max
             policy[s] = best_action # argmax
-            delta = max(delta, abs(old_V - V[s]))
+            delta = max(delta, abs(V_old[s] - V[s]))
+        count += 1 
         if delta < theta:
             break
-    return policy, V
-
-                
+    return policy, V, count
 
 
-
-env = GridWorldEnv()
-policy_table = {
-    0: "RIGHT",
-    1: "RIGHT",
-    2: "DOWN",
-    3: "LEFT",
-
-    4: "DOWN",
-    6: "DOWN",
-
-    8: "RIGHT",
-    9: "RIGHT",
-    10: "DOWN",
-
-    13: "DOWN",
-    14: "RIGHT"
-}
-
-optimal_policy = policy_iteration(env, policy_table)
-val_optimal, V = value_iteration(env, 1e-5)
-print(val_optimal)
-print(V)
+def random_policy(env):
+    """
+    Build a random action for every non-terminal state.
+    """
+    return {
+        s: random.choice(env.actions)
+        for s in env.states
+        if not env.is_terminal(s)
+    }

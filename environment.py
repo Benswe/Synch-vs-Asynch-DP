@@ -1,14 +1,29 @@
 import random
 
 class GridWorldEnv:
-    def __init__(self, grid=None, gamma=0.99, is_slippery=True):
+    def __init__(
+        self,
+        grid=None,
+        rows=None,
+        cols=None,
+        gamma=0.99,
+        is_slippery=True,
+        hole_prob=0.2,
+        seed=None,
+    ):
         if grid is None:
-            grid = [
-                "SFFF",
-                "FHFH",
-                "FFFH",
-                "HFFG"
-            ]
+            if rows is None and cols is None:
+                grid = [
+                    "SFFF",
+                    "FHFH",
+                    "FFFH",
+                    "HFFG"
+                ]
+            else:
+                if rows is None or cols is None:
+                    raise ValueError("Pass both rows and cols, or pass neither.")
+                grid = self.generate_grid(rows, cols, hole_prob, seed)
+        self.validate_grid(grid)
         self.grid = grid 
         self.n_rows = len(grid)
         self.n_cols = len(grid[0])
@@ -20,6 +35,73 @@ class GridWorldEnv:
         self.gamma = gamma
         self.is_slippery = is_slippery
         self.terminal_states = self.get_terminal_states()
+
+    @staticmethod
+    def generate_grid(rows, cols, hole_prob=0.2, seed=None):
+        """
+        Create a solvable grid with S at the top-left and G at the bottom-right.
+
+        A safe path is protected by moving right across row 0, then down the
+        last column. Holes are only placed outside that path.
+        """
+        if rows <= 0 or cols <= 0:
+            raise ValueError("rows and cols must be positive.")
+        if rows * cols < 2:
+            raise ValueError("Grid needs at least 2 cells so it can have S and G.")
+        if not 0 <= hole_prob <= 1:
+            raise ValueError("hole_prob must be between 0 and 1.")
+
+        rng = random.Random(seed)
+        safe_path = {(0, col) for col in range(cols)}
+        safe_path.update((row, cols - 1) for row in range(rows))
+
+        grid = []
+        for row in range(rows):
+            chars = []
+            for col in range(cols):
+                if (row, col) == (0, 0):
+                    chars.append("S")
+                elif (row, col) == (rows - 1, cols - 1):
+                    chars.append("G")
+                elif (row, col) in safe_path:
+                    chars.append("F")
+                elif rng.random() < hole_prob:
+                    chars.append("H")
+                else:
+                    chars.append("F")
+            grid.append("".join(chars))
+        return grid
+
+    @staticmethod
+    def validate_grid(grid):
+        """
+        Check that the grid is rectangular and has exactly one S and one G.
+        """
+        if not grid:
+            raise ValueError("Grid cannot be empty.")
+        n_cols = len(grid[0])
+        if n_cols == 0:
+            raise ValueError("Grid rows cannot be empty.")
+
+        valid_tiles = {"S", "F", "H", "G"}
+        start_count = 0
+        goal_count = 0
+        for row in grid:
+            if len(row) != n_cols:
+                raise ValueError("Every grid row must have the same length.")
+            for tile in row:
+                if tile not in valid_tiles:
+                    raise ValueError(f"Invalid tile {tile!r}. Use S, F, H, or G.")
+                if tile == "S":
+                    start_count += 1
+                elif tile == "G":
+                    goal_count += 1
+
+        if start_count != 1:
+            raise ValueError("Grid must contain exactly one start tile S.")
+        if goal_count != 1:
+            raise ValueError("Grid must contain exactly one goal tile G.")
+
     def state_to_pos(self, state):
         """
         Convert integer state into (row, col)
@@ -142,6 +224,8 @@ class GridWorldEnv:
         "DOWN": ["LEFT", "DOWN", "RIGHT"]
         }
 
+        if action not in slippery_actions:
+            raise ValueError(f"Unknown action {action!r}. Choose from {self.actions}.")
         return slippery_actions[action] # List of actions caused by slipping
     def get_transitions(self, state, action):
         """ 
@@ -202,12 +286,12 @@ class GridWorldEnv:
         
         """
         for row in range(self.n_rows):
-            row_string = ""
+            row_string = []
             for col in range(self.n_cols):
                 state = self.pos_to_state(row, col)
                 if state == self.state:
-                    row_string += "A "
+                    row_string.append("A")
                 else:
                     tile = self.get_tile(state)
-                    row_string += tile + " "
-            print(row_string)
+                    row_string.append(tile)
+            print(" ".join(row_string))
