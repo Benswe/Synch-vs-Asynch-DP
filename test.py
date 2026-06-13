@@ -1,5 +1,5 @@
 from synch import policy_iteration, random_policy, value_iteration
-from asynch import in_place_value_iteration
+from asynch import in_place_value_iteration, random_asynchronous_value_iteration
 from environment import GridWorldEnv
 import time
 
@@ -64,6 +64,14 @@ def main():
     print("In place value iteration rounds: ", ipv_count)
     print("Estimated value from start:", V_ipvi[0])
     render_policy(env, pi_ipvi)
+
+    start = time.time()
+    pi_avi, V_avi, av_count = random_asynchronous_value_iteration(env)
+    print("\n Random asynch value iteration:", time.time() - start)
+    print("Random asynch value iteration rounds: ", av_count)
+    print("Estimated value from start:", V_avi[0])
+    render_policy(env, pi_ipvi)
+
     
 
 if __name__ == "__main__":
