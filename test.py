@@ -1,5 +1,5 @@
 from synch import policy_iteration, random_policy, value_iteration
-from asynch import in_place_value_iteration, random_asynchronous_value_iteration
+from asynch import in_place_value_iteration, prioritized_sweeping
 from environment import GridWorldEnv
 import time
 
@@ -66,12 +66,11 @@ def main():
     render_policy(env, pi_ipvi)
 
     start = time.time()
-    pi_avi, V_avi, av_count = random_asynchronous_value_iteration(env)
-    print("\n Random asynch value iteration:", time.time() - start)
-    print("Random asynch value iteration rounds: ", av_count)
-    print("Estimated value from start:", V_avi[0])
-    render_policy(env, pi_ipvi)
-
+    sweep_pi, V_sweep, sweep_count = prioritized_sweeping(env)
+    print("\nPrioritized sweeping:", time.time() - start)
+    print("Prioritized sweeping updates: ", sweep_count)
+    print("Estimated value from start:", V_sweep[0])
+    render_policy(env, sweep_pi)
     
 
 if __name__ == "__main__":
